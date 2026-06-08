@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.soup_reminders2"
+    namespace = "com.example.soup_reminders"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.soup_reminders2"
+        applicationId = "com.example.soup_reminders"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

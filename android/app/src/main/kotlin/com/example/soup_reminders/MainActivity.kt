@@ -1,4 +1,4 @@
-package com.example.soup_reminders2
+package com.example.soup_reminders
 
 import io.flutter.embedding.android.FlutterActivity
 

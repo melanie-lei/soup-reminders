@@ -1,30 +1,41 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Smoke test for the app shell. The real UI (and its tests) will replace this
+// once the Figma designs land.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:soup_reminders2/main.dart';
+import 'package:soup_reminders/features/alarm/alarm_calculator.dart';
+import 'package:soup_reminders/features/alarm/models/alarm_models.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('AlarmCalculator', () {
+    const calc = AlarmCalculator();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('matches the spec example (leave 09:30, makeup +25)', () {
+      final result = calc.compute(
+        anchorTime: DateTime(2026, 6, 6, 9, 30),
+        activityMinutes: 25, // makeup
+        baseBufferMinutes: 30,
+        snoozeWindowMinutes: 20,
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(result.outOfBedTime, DateTime(2026, 6, 6, 8, 35));
+      expect(result.firstRingTime, DateTime(2026, 6, 6, 8, 15));
+      expect(result.prepMinutes, 55);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('sums enabled question minutes from the library', () {
+      final library = [
+        AlarmQuestion(id: 'a', label: 'makeup', addedMinutes: 25),
+        AlarmQuestion(id: 'b', label: 'lunch', addedMinutes: 15),
+        AlarmQuestion(id: 'c', label: 'prep', addedMinutes: 10),
+      ];
+
+      final minutes = calc.activityMinutes(
+        enabledIds: ['a', 'c'],
+        questionLibrary: library,
+      );
+
+      expect(minutes, 35);
+    });
   });
 }

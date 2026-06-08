@@ -1,121 +1,99 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'package:soup_reminders/features/alarm/alarm_providers.dart';
+import 'package:soup_reminders/features/alarm/alarm_repository.dart';
+import 'package:soup_reminders/features/rewards/kisses_providers.dart';
+import 'package:soup_reminders/features/rewards/kisses_repository.dart';
+import 'package:soup_reminders/features/settings/settings_providers.dart';
+import 'package:soup_reminders/features/tasks/task_providers.dart';
+import 'package:soup_reminders/features/tasks/task_repository.dart';
+import 'package:soup_reminders/services/hive_service.dart';
+import 'package:soup_reminders/services/notification_service.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Storage.
+  final boxes = await const HiveService().init();
+
+  // 2. Notifications.
+  final notifications = NotificationService(FlutterLocalNotificationsPlugin());
+  await notifications.init();
+
+  // 3. Repositories.
+  final alarmRepo = AlarmRepository(
+    questions: boxes.alarmQuestions,
+    presets: boxes.alarmPresets,
+    scheduled: boxes.scheduledAlarms,
+  );
+  final taskRepo = TaskRepository(
+    tasks: boxes.tasks,
+    presets: boxes.taskPresets,
+  );
+  final kissesRepo = KissesRepository(boxes.kissTransactions);
+
+  // 4. Seed built-in questions + chore/hobby presets on first run.
+  await alarmRepo.seedDefaults();
+  await taskRepo.seedDefaults();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        notificationServiceProvider.overrideWithValue(notifications),
+        alarmRepositoryProvider.overrideWithValue(alarmRepo),
+        taskRepositoryProvider.overrideWithValue(taskRepo),
+        kissesRepositoryProvider.overrideWithValue(kissesRepo),
+        settingsBoxProvider.overrideWithValue(boxes.settings),
+      ],
+      child: const SoupRemindersApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SoupRemindersApp extends StatelessWidget {
+  const SoupRemindersApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Soup Reminders',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const _BackendSmokeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+/// Temporary placeholder screen until the Figma UI lands. Surfaces the live
+/// kisses balance + next task so the wired-up backend is visible end-to-end.
+class _BackendSmokeScreen extends ConsumerWidget {
+  const _BackendSmokeScreen();
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final balance = ref.watch(kissesBalanceProvider);
+    final upcoming = ref.watch(upcomingTaskProvider);
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(title: const Text('Soup Reminders')),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+            Text('💋 $balance kisses',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 16),
+            Text(upcoming == null
+                ? 'No upcoming task — plan your day!'
+                : 'Next: ${upcoming.title}'),
+            const SizedBox(height: 24),
+            const Text('Backend wired up. UI coming from Figma.'),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
